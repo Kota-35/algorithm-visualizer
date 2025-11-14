@@ -1,8 +1,10 @@
 use std::fmt;
 
 use crate::btree::node::BTreeNode;
+use wasm_bindgen::prelude::*;
 
 // B-Tree
+#[wasm_bindgen]
 pub struct BTree {
     // 根
     root: Option<Box<BTreeNode>>,
@@ -11,7 +13,9 @@ pub struct BTree {
     t: usize,
 }
 
+#[wasm_bindgen]
 impl BTree {
+    #[wasm_bindgen(constructor)]
     pub fn new(t: usize) -> Self {
         BTree { root: None, t }
     }

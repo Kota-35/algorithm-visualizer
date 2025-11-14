@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "biome check",
-    "format": "biome format --write"
+    "format": "biome format --write",
+    "build:wasm": "cd wasm && wasm-pack build --target bundler --out-dir ../src/lib/wasm"
   },
   "dependencies": {
     "@radix-ui/react-slot": "^1.2.4",

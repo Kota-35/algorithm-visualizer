@@ -1,3 +1,7 @@
+use wasm_bindgen::prelude::*;
+
+#[wasm_bindgen]
+#[derive(Clone)]
 pub struct BTreeNode {
     /// キーの配列
     keys: Vec<i32>,
