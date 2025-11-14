@@ -145,6 +145,18 @@ impl BTreeNode {
         self.keys.get(index).copied()
     }
 
+    pub fn keys(&self) -> Vec<i32> {
+        self.keys.clone()
+    }
+
+    pub fn leaf(&self) -> bool {
+        self.leaf
+    }
+
+    pub fn children(&self) -> Vec<Box<BTreeNode>> {
+        self.children.clone()
+    }
+
     /// 最初のキーを取得(存在する場合)
     pub fn first_key(&self) -> Option<i32> {
         self.keys.first().copied()

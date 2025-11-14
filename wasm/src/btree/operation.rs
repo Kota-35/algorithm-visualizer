@@ -1,6 +1,7 @@
 use std::fmt;
 
 use crate::btree::node::BTreeNode;
+use js_sys::Array;
 use wasm_bindgen::prelude::*;
 
 // B-Tree
@@ -74,6 +75,94 @@ impl BTree {
                 }
             }
         }
+    }
+
+    fn node_to_js_value(&self, node: &BTreeNode) -> JsValue {
+        let obj = js_sys::Object::new();
+
+        // keys配列を作成
+        let keys = Array::from_iter(
+            node.keys().iter().map(|key| JsValue::from(*key)),
+        );
+        let _ = js_sys::Reflect::set(&obj, &"keys".into(), &keys.into());
+
+        // children配列の作成
+        let children = if !node.leaf() {
+            Array::from_iter(
+                node.children()
+                    .iter()
+                    .map(|child| self.node_to_js_value(&child)),
+            )
+        } else {
+            Array::new()
+        };
+
+        let _ = js_sys::Reflect::set(
+            &obj,
+            &"children".into(),
+            &children.into(),
+        );
+        let _ = js_sys::Reflect::set(
+            &obj,
+            &"isLeaf".into(),
+            &JsValue::from(node.leaf()),
+        );
+
+        obj.into()
+    }
+
+    #[wasm_bindgen]
+    pub fn get_structure(&self) -> JsValue {
+        match &self.root {
+            Some(root) => self.node_to_js_value(&root),
+            None => JsValue::NULL,
+        }
+    }
+
+    /// キーの総数を取得
+    #[wasm_bindgen]
+    pub fn get_total_keys(&self) -> usize {
+        self.count_keys(&self.root)
+    }
+
+    fn count_keys(&self, node: &Option<Box<BTreeNode>>) -> usize {
+        match node {
+            Some(n) => {
+                let keys_count = n.keys_len();
+                let children_keys_count = if !n.leaf() {
+                    n.children()
+                        .iter()
+                        .map(|child| self.count_keys(&Some(child.clone())))
+                        .sum()
+                } else {
+                    0
+                };
+
+                keys_count + children_keys_count
+            }
+            None => 0,
+        }
+    }
+
+    fn get_node_height(&self, node: &Option<Box<BTreeNode>>) -> usize {
+        match node {
+            Some(n) => {
+                if n.leaf() {
+                    1
+                } else if n.children().is_empty() {
+                    1
+                } else {
+                    1 + self
+                        .get_node_height(&Some(n.children()[0].clone()))
+                }
+            }
+            None => 0,
+        }
+    }
+
+    #[wasm_bindgen]
+    pub fn get_height(&self) -> usize {
+        self.get_node_height(&self.root)
     }
 }
 
