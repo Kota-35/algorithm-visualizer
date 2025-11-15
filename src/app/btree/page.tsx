@@ -1,10 +1,20 @@
+import clsx from "clsx";
 import { BTreeVisualizer } from "./components/BTreeVisualizer";
 
 const BTree = () => {
   return (
-    <div>
-      <BTreeVisualizer />
-    </div>
+    <main
+      className={clsx(
+        "min-h-screen",
+        "bg-background",
+        "text-foreground",
+        "p-8",
+      )}
+    >
+      <div>
+        <BTreeVisualizer />
+      </div>
+    </main>
   );
 };
 
