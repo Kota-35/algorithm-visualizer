@@ -59,4 +59,8 @@ export class BTree {
   getHeight(): number {
     return this.wasmBTree.get_height();
   }
+
+  delete(key: number): boolean {
+    return this.wasmBTree.delete(key);
+  }
 }
