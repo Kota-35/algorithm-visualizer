@@ -164,6 +164,26 @@ impl BTree {
     pub fn get_height(&self) -> usize {
         self.get_node_height(&self.root)
     }
+
+    /// キーkを削除
+    #[wasm_bindgen]
+    pub fn delete(&mut self, k: i32) -> bool {
+        match self.root.take() {
+            None => false,
+            Some(mut root) => {
+                let result = root.delete(k);
+
+                // ルートが空になった場合、最初の子を新しいルートにする
+                if root.keys().is_empty() && !root.leaf() {
+                    self.root = root.children().pop();
+                } else {
+                    self.root = Some(root);
+                }
+
+                result
+            }
+        }
+    }
 }
 
 impl fmt::Display for BTree {
@@ -199,5 +219,237 @@ mod tests {
 
         assert!(t.search(6), "6 should be present");
         assert!(!t.search(15), "15 should not be present");
+    }
+
+    #[test]
+    fn test_btree_delete_leaf_node() {
+        let mut t = BTree::new(3);
+
+        t.insert(10);
+        t.insert(20);
+        t.insert(5);
+        t.insert(6);
+        t.insert(12);
+        t.insert(30);
+        t.insert(7);
+        t.insert(17);
+
+        let initial_keys = t.get_total_keys();
+        assert!(t.delete(7), "7 should be deleted successfully");
+        assert!(!t.search(7), "7 should not be present after deletion");
+        assert_eq!(
+            t.get_total_keys(),
+            initial_keys - 1,
+            "Total keys should decrease by 1"
+        );
+    }
+
+    #[test]
+    fn test_btree_delete_internal_node() {
+        let mut t = BTree::new(3);
+
+        t.insert(10);
+        t.insert(20);
+        t.insert(5);
+        t.insert(6);
+        t.insert(12);
+        t.insert(30);
+        t.insert(7);
+        t.insert(17);
+
+        let initial_keys = t.get_total_keys();
+        assert!(t.delete(10), "10 should be deleted successfully");
+        assert!(!t.search(10), "10 should not be present after deletion");
+        assert_eq!(
+            t.get_total_keys(),
+            initial_keys - 1,
+            "Total keys should decrease by 1"
+        );
+
+        // 他のキーがまだ存在することを確認
+        assert!(t.search(5), "5 should still be present");
+        assert!(t.search(20), "20 should still be present");
+    }
+
+    #[test]
+    fn test_btree_delete_nonexistent_key() {
+        let mut t = BTree::new(3);
+
+        t.insert(10);
+        t.insert(20);
+        t.insert(5);
+
+        let initial_keys = t.get_total_keys();
+        assert!(
+            !t.delete(99),
+            "99 should not be deleted (does not exist)"
+        );
+        assert_eq!(
+            t.get_total_keys(),
+            initial_keys,
+            "Total keys should remain the same"
+        );
+    }
+
+    #[test]
+    fn test_btree_delete_multiple_keys() {
+        let mut t = BTree::new(3);
+
+        t.insert(10);
+        t.insert(20);
+        t.insert(5);
+        t.insert(6);
+        t.insert(12);
+        t.insert(30);
+        t.insert(7);
+        t.insert(17);
+
+        let initial_keys = t.get_total_keys();
+
+        // 複数のキーを削除
+        assert!(t.delete(6), "6 should be deleted");
+        assert!(t.delete(12), "12 should be deleted");
+        assert!(t.delete(30), "30 should be deleted");
+
+        assert!(!t.search(6), "6 should not be present");
+        assert!(!t.search(12), "12 should not be present");
+        assert!(!t.search(30), "30 should not be present");
+        assert_eq!(
+            t.get_total_keys(),
+            initial_keys - 3,
+            "Total keys should decrease by 3"
+        );
+
+        // 残りのキーが存在することを確認
+        assert!(t.search(10), "10 should still be present");
+        assert!(t.search(20), "20 should still be present");
+        assert!(t.search(5), "5 should still be present");
+    }
+
+    #[test]
+    fn test_btree_delete_all_keys() {
+        let mut t = BTree::new(3);
+
+        t.insert(10);
+        t.insert(20);
+        t.insert(5);
+
+        assert!(t.delete(10), "10 should be deleted");
+        assert!(t.delete(20), "20 should be deleted");
+        assert!(t.delete(5), "5 should be deleted");
+
+        assert_eq!(t.get_total_keys(), 0, "Total keys should be 0");
+        assert!(!t.search(10), "10 should not be present");
+        assert!(!t.search(20), "20 should not be present");
+        assert!(!t.search(5), "5 should not be present");
+    }
+
+    #[test]
+    fn test_btree_delete_with_merge() {
+        let mut t = BTree::new(3);
+
+        // マージが発生するような構造を作成
+        t.insert(1);
+        t.insert(2);
+        t.insert(3);
+        t.insert(4);
+        t.insert(5);
+        t.insert(6);
+        t.insert(7);
+        t.insert(8);
+        t.insert(9);
+        t.insert(10);
+
+        let initial_keys = t.get_total_keys();
+
+        // 内部ノードから削除してマージを発生させる
+        assert!(t.delete(5), "5 should be deleted");
+        assert!(!t.search(5), "5 should not be present after deletion");
+        assert_eq!(
+            t.get_total_keys(),
+            initial_keys - 1,
+            "Total keys should decrease by 1"
+        );
+
+        // ツリーの構造が正しく保たれていることを確認
+        assert!(t.search(1), "1 should still be present");
+        assert!(t.search(10), "10 should still be present");
+    }
+
+    #[test]
+    fn test_btree_delete_root_becomes_empty() {
+        let mut t = BTree::new(3);
+
+        t.insert(10);
+        t.insert(20);
+        t.insert(5);
+        t.insert(6);
+        t.insert(12);
+        t.insert(30);
+        t.insert(7);
+        t.insert(17);
+
+        // ルートが空になるような削除を実行
+        // まず、ルート以外のキーを削除してから、ルートのキーを削除
+        let root_key = if t.search(10) { 10 } else { 5 };
+
+        // ルートのキーを削除
+        assert!(t.delete(root_key), "Root key should be deleted");
+        assert!(
+            !t.search(root_key),
+            "Root key should not be present after deletion"
+        );
+
+        // ツリーがまだ有効であることを確認
+        let remaining_keys = t.get_total_keys();
+        assert!(remaining_keys > 0, "Tree should still have keys");
+    }
+
+    #[test]
+    fn test_btree_delete_sequential() {
+        let mut t = BTree::new(3);
+
+        // 順序よく挿入
+        for i in 1..=20 {
+            t.insert(i);
+        }
+
+        let initial_keys = t.get_total_keys();
+        assert_eq!(initial_keys, 20, "Should have 20 keys initially");
+
+        // 順序よく削除
+        for i in 1..=10 {
+            assert!(t.delete(i), "Key {} should be deleted", i);
+            assert!(!t.search(i), "Key {} should not be present", i);
+        }
+
+        assert_eq!(
+            t.get_total_keys(),
+            10,
+            "Should have 10 keys remaining"
+        );
+
+        // 残りのキーが存在することを確認
+        for i in 11..=20 {
+            assert!(t.search(i), "Key {} should still be present", i);
+        }
+    }
+
+    #[test]
+    fn test_btree_delete_reverse_sequential() {
+        let mut t = BTree::new(3);
+
+        // 順序よく挿入（より小さな範囲でテスト）
+        for i in 1..=10 {
+            t.insert(i);
+        }
+
+        // 逆順で削除
+        for i in (1..=10).rev() {
+            assert!(t.delete(i), "Key {} should be deleted", i);
+            assert!(!t.search(i), "Key {} should not be present", i);
+        }
+
+        assert_eq!(t.get_total_keys(), 0, "Should have 0 keys remaining");
     }
 }
